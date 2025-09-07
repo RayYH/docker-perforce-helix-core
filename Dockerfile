@@ -37,37 +37,32 @@ RUN set -eux; \
     /usr/local/sbin/gosu --version
 
 # Entry point: first-run init + start p4d in foreground
+# Entry point: first-run init + start p4d in foreground (minimal flags)
 RUN printf '%s\n' \
-    '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    '' \
-    ': "${P4ROOT:?}" "${P4LOG:?}" "${P4JOURNAL:?}" "${P4PORT:?}" "${P4SERVERID:?}"' \
-    'mkdir -p "$(dirname "$P4LOG")" "$P4ROOT"' \
-    'chown -R perforce:root /perforce' \
-    '' \
-    '# first-run init if no database files exist' \
-    'if [ ! -f "$P4ROOT/db.counters" ]; then' \
-    '  echo ">> First run: initializing Perforce db under $P4ROOT"' \
-    '  # initialize metadata (creates core db.* files if missing)' \
-    '  exec 3>&1' \
-    '  /usr/local/sbin/gosu perforce p4d -r "$P4ROOT" -xi >&3' \
-    'fi' \
-    '' \
-    '# ensure server.id exists' \
-    'if [ ! -f "$P4ROOT/server.id" ]; then' \
-    '  echo "$P4SERVERID" > "$P4ROOT/server.id"' \
-    '  chown perforce:root "$P4ROOT/server.id"' \
-    '  echo ">> Wrote server.id = $P4SERVERID"' \
-    'fi' \
-    '' \
-    'echo ">> Starting p4d on 0.0.0.0:${P4PORT}"' \
-    'exec /usr/local/sbin/gosu perforce p4d \\' \
-    '  -r "$P4ROOT" \\' \
-    '  -L "$P4LOG" \\' \
-    '  -J "$P4JOURNAL" \\' \
-    '  -p "0.0.0.0:$P4PORT" \\' \
-    '  -v server=3' \
-    > /usr/local/bin/start-p4d && chmod +x /usr/local/bin/start-p4d
+'#!/usr/bin/env bash' \
+'set -euo pipefail' \
+'' \
+': "${P4ROOT:?}" "${P4LOG:?}" "${P4PORT:?}" "${P4SERVERID:=master.1}"' \
+'mkdir -p "$(dirname "$P4LOG")" "$P4ROOT"' \
+'chown -R perforce:root /perforce' \
+'' \
+'# First run init if db not present' \
+'if [ ! -f "$P4ROOT/db.counters" ]; then' \
+'  echo ">> First run: initializing Perforce db under $P4ROOT"' \
+'  exec 3>&1' \
+'  /usr/local/sbin/gosu perforce p4d -r "$P4ROOT" -xi >&3' \
+'fi' \
+'' \
+'# Ensure server.id exists' \
+'if [ ! -f "$P4ROOT/server.id" ]; then' \
+'  echo "$P4SERVERID" > "$P4ROOT/server.id"' \
+'  chown perforce:root "$P4ROOT/server.id"' \
+'  echo ">> Wrote server.id = $P4SERVERID"' \
+'fi' \
+'' \
+'echo ">> Starting p4d on 0.0.0.0:${P4PORT}"' \
+'exec /usr/local/sbin/gosu perforce p4d -r "$P4ROOT" -L "$P4LOG" -p "0.0.0.0:$P4PORT"' \
+> /usr/local/bin/start-p4d && chmod +x /usr/local/bin/start-p4d
 
 # tiny editor if you want
 RUN apt-get update && apt-get install -y --no-install-recommends vim-tiny \
