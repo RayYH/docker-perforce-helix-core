@@ -1,9 +1,12 @@
-# Perforce Helix Core (p4d) on Ubuntu
+# Perforce Helix Core (p4d) on Ubuntu — multi-arch (amd64, arm64)
 FROM ubuntu:22.04
 
 LABEL maintainer="rayyh <rayyounghong@gmail.com>"
 
 ARG GOSU_VERSION=1.17
+ARG P4_RELEASE=r26.1
+# Provided automatically by BuildKit for multi-platform builds: amd64 | arm64
+ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
     P4PORT=1666 \
@@ -12,23 +15,26 @@ ENV DEBIAN_FRONTEND=noninteractive \
     P4JOURNAL=/perforce/logs/journal \
     P4SERVERID=master.1
 
-# Install Perforce, gosu, and runtime utilities in a single layer.
+# Install runtime deps, p4/p4d binaries from Perforce FTP, and gosu — single layer.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        ca-certificates curl gnupg tzdata vim-tiny; \
-    curl -fsSL https://package.perforce.com/perforce.pubkey \
-        | gpg --dearmor -o /usr/share/keyrings/perforce-archive-keyring.gpg; \
-    echo "deb [signed-by=/usr/share/keyrings/perforce-archive-keyring.gpg] http://package.perforce.com/apt/ubuntu jammy release" \
-        > /etc/apt/sources.list.d/perforce.list; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends helix-p4d helix-cli; \
-    arch="$(dpkg --print-architecture)"; \
-    curl -fsSL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${arch}" \
+        ca-certificates curl tzdata vim-tiny; \
+    case "$TARGETARCH" in \
+        amd64) p4arch="x86_64" ;; \
+        arm64) p4arch="aarch64" ;; \
+        *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    p4base="https://ftp.perforce.com/perforce/${P4_RELEASE}/bin.linux26${p4arch}"; \
+    curl -fsSL "${p4base}/p4d" -o /usr/local/bin/p4d; \
+    curl -fsSL "${p4base}/p4"  -o /usr/local/bin/p4; \
+    chmod +x /usr/local/bin/p4d /usr/local/bin/p4; \
+    P4ROOT=/tmp /usr/local/bin/p4d -V | head -3; \
+    curl -fsSL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${TARGETARCH}" \
         -o /usr/local/sbin/gosu; \
     chmod +x /usr/local/sbin/gosu; \
     /usr/local/sbin/gosu --version; \
-    id -u perforce >/dev/null 2>&1 || useradd -r -u 1001 -g root -m -d /home/perforce perforce; \
+    useradd -r -u 1001 -g root -m -d /home/perforce perforce; \
     mkdir -p /perforce/metadata /perforce/logs; \
     chown -R perforce:root /perforce; \
     apt-get clean; \

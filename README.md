@@ -1,6 +1,7 @@
 # `docker-perforce-helix-core`
 
-`docker-perforce-helix-core` is a Docker image for running Perforce Helix Core Server.
+`docker-perforce-helix-core` is a Docker image for running Perforce Helix Core
+Server. Multi-arch: `linux/amd64`, `linux/arm64`.
 
 ```shell
 mkdir -p ./perforce
