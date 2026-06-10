@@ -28,7 +28,7 @@ RUN set -eux; \
         -o /usr/local/sbin/gosu; \
     chmod +x /usr/local/sbin/gosu; \
     /usr/local/sbin/gosu --version; \
-    useradd -r -u 1001 -g root -m -d /home/perforce perforce; \
+    id -u perforce >/dev/null 2>&1 || useradd -r -u 1001 -g root -m -d /home/perforce perforce; \
     mkdir -p /perforce/metadata /perforce/logs; \
     chown -R perforce:root /perforce; \
     apt-get clean; \
